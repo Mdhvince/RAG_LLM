@@ -73,11 +73,11 @@ def evaluation_q(original_model, tuned_model, dialogues, human_baseline_summarie
         prompt = f"Summarize the following conversation:\n\n{dialogue}\n\nSummary: "
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids
 
-        original_model_output = original_model.generate(input_ids, generation_config=gen_config)
+        original_model_output = original_model.generate(input_ids=input_ids, generation_config=gen_config)
         original_model_text = tokenizer.decode(original_model_output[0], skip_special_tokens=True)
         original_model_summaries.append(original_model_text)
 
-        tuned_model_output = tuned_model.generate(input_ids, generation_config=gen_config)
+        tuned_model_output = tuned_model.generate(input_ids=input_ids, generation_config=gen_config)
         instruct_model_text = tokenizer.decode(tuned_model_output[0], skip_special_tokens=True)
         tuned_model_summaries.append(instruct_model_text)
 
