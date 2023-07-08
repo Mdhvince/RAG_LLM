@@ -36,7 +36,6 @@ if __name__ == "__main__":
     hf_dataset_name = "knkarthick/dialogsum"
     dataset = load_dataset(hf_dataset_name)
     original_model, tokenizer = load_model(model_name="google/flan-t5-base")
-
     tokenized_dataset = preprocess_dialogue(dataset, tokenizer)
 
     lora_config = LoraConfig(
@@ -53,6 +52,7 @@ if __name__ == "__main__":
     print(f"Number of trainable parameters: {n_trainable_parameters(peft_model)}")
 
     output_dir = Path(f"peft_dialogue_summary_training_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+    output_dir.mkdir(exist_ok=True)
 
     TRAIN = False
     EVALUATE = True
