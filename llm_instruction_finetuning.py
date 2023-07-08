@@ -162,7 +162,7 @@ if __name__ == '__main__':
                 np.array(list(instruct_model_results.values())) - np.array(list(original_model_results.values()))
         )
         for key, value in zip(instruct_model_results.keys(), improvement):
-            print(f"{key}: {value * 100:.2f}")
+            print(f"{key}: {value * 100:.2f} %")
 
 
 
