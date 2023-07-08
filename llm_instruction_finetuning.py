@@ -97,8 +97,10 @@ def evaluation_q(original_model, tuned_model, dialogues, human_baseline_summarie
         references=human_baseline_summaries[0:len(tuned_model_summaries)],
         use_stemmer=True
     )
-    zipped_rouge = list(zip(original_model_results, tuned_model_results))
-    df_rouge = pd.DataFrame(zipped_rouge, columns=["Original Model", "Instruction Fine-tuned Model"])
+    df_rouge = pd.DataFrame(
+        zip(original_model_results.values(), tuned_model_results.values()),
+        columns=["Original Model", "Instruction Fine-tuned Model"]
+    )
 
     return df_human, df_rouge, original_model_results, tuned_model_results
 
