@@ -35,7 +35,7 @@ if __name__ == '__main__':
     hf_dataset_name = "knkarthick/dialogsum"
     dataset = load_dataset(hf_dataset_name)
     model, tokenizer = load_model()
-    gen_config = GenerationConfig(do_sample=True, max_length=100, top_k=50, top_p=0.95, temperature=1.1)
+    gen_config = GenerationConfig(do_sample=True, max_new_tokens=100, top_k=50, top_p=0.95, temperature=1.1)
 
 
     dash_line = "-" * 100
