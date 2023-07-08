@@ -146,6 +146,7 @@ if __name__ == '__main__':
         )
 
         instruct_model = AutoModelForSeq2SeqLM.from_pretrained("", torch_dtype=torch.bfloat16)
+        instruct_model.eval()
 
         dialogues = dataset["test"][0:10]["dialogue"]
         human_baseline_summaries = dataset["test"][0:10]["summary"]
