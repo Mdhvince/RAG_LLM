@@ -27,7 +27,7 @@ from datasets import load_dataset
 from transformers import TrainingArguments, Trainer, AutoModelForSeq2SeqLM, GenerationConfig
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel, PeftConfig
 
-from llm_instruction_finetuning import preprocess_dialogue, evaluation_q
+from instruction_finetuning import preprocess_dialogue, evaluation_q
 from utils import load_model, n_trainable_parameters
 
 
