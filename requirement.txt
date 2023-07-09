@@ -59,6 +59,7 @@ torchdata==0.6.1
 tqdm==4.65.0
 transformers==4.30.2
 triton==2.0.0
+trl==0.4.6
 typing_extensions==4.7.1
 tzdata==2023.3
 urllib3==2.0.3
