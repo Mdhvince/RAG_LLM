@@ -87,6 +87,7 @@ if __name__ == "__main__":
             original_model,
             "peft-checkpoint-local",
             torch_dtype=torch.bfloat16,
+            device_map="auto",
             is_trainable=False
         )
         print(f"Number of trainable parameters: {n_trainable_parameters(peft_model)}")  # should be 0
