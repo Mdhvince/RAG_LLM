@@ -44,33 +44,6 @@ def create_vectors(persist_directory, embedding, doc_dir="docs"):
 
     return vectordb
 
-def get_model(model_name, peft_model_path, task="text2text-generation", gen_config=None, use_peft=True):
-    tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
-
-    if use_peft:
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
-
-        peft_model = PeftModel.from_pretrained(
-            model,
-            peft_model_path,
-            orch_dtype=torch.bfloat16,
-            is_trainable=False,
-            generation_config=gen_config
-        )
-        model = peft_model
-    else:
-        model = model_name
-
-    pipe = pipeline(
-        task=task,
-        model=model,
-        tokenizer=tokenizer,
-        device_map="auto",
-        generation_config=gen_config
-    )
-    llm = HuggingFacePipeline(pipeline=pipe)
-    return llm
-
 
 chat_history = []
 
@@ -80,7 +53,6 @@ if __name__ == "__main__":
     RELOAD = False
     persist_directory = str(PROJECT_ROOT / "docs/chroma/")
     documents_directory = str(PROJECT_ROOT / "docs")
-    max_completion_length = 3000
     embedding = HuggingFaceEmbeddings()
 
     if RELOAD:
@@ -93,18 +65,28 @@ if __name__ == "__main__":
         )
     else:
         vectordb = Chroma(persist_directory=persist_directory, embedding_function=embedding)
-    print("done.")
 
+    model = "bigscience/bloom-560m"
+    task = "text-generation"
 
-    gen_config = GenerationConfig(temperature=0, max_length=max_completion_length)
-
-    llm = get_model(
-        model_name="google/flan-t5-base",
-        peft_model_path=str(PROJECT_ROOT / "ft-alignment/peft-checkpoint-local"),
-        task="text2text-generation",
-        gen_config=gen_config,
-        use_peft=True
+    tokenizer = AutoTokenizer.from_pretrained(model, device_map="auto")
+    gen_config = GenerationConfig(
+        temperature=1.0,
+        max_new_tokens=250,
+        top_k=50,
+        top_p=1.0,
+        # beam-search multinomial sampling
+        do_sample=True,
+        num_beams=2,
     )
+    pipe = pipeline(
+        task=task,
+        model=model,
+        tokenizer=tokenizer,
+        device_map="auto",
+        generation_config=gen_config
+    )
+    llm = HuggingFacePipeline(pipeline=pipe)
 
     memory = ConversationBufferMemory(
         llm=llm,
@@ -113,12 +95,10 @@ if __name__ == "__main__":
         output_key="answer",
         return_messages=True
     )
-
-
     qa = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 4}),
+        retriever=vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
         memory=memory,
         verbose=False,
         return_source_documents=True,
