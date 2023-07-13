@@ -2,21 +2,14 @@ import os
 import shutil
 from pathlib import Path
 
-import torch
-from langchain import PromptTemplate, OpenAI
 from langchain.llms import HuggingFacePipeline
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chains.query_constructor.base import AttributeInfo
-from langchain.memory import ConversationBufferMemory, ConversationBufferWindowMemory, ConversationTokenBufferMemory, \
-    ConversationSummaryBufferMemory
-from langchain.retrievers import SelfQueryRetriever
+from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.document_loaders import PyPDFLoader
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings, HuggingFaceInstructEmbeddings
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig, AutoModelForCausalLM, \
-    RagTokenizer, RagTokenForGeneration
-from peft import PeftModel, TaskType
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig, AutoModelForCausalLM
 
 
 def create_vectors(persist_directory, embedding, doc_dir="docs"):
@@ -66,6 +59,7 @@ if __name__ == "__main__":
     else:
         vectordb = Chroma(persist_directory=persist_directory, embedding_function=embedding)
 
+
     model = "bigscience/bloom-560m"
     task = "text-generation"
 
@@ -98,11 +92,12 @@ if __name__ == "__main__":
     qa = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
+        retriever=vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 3}),
         memory=memory,
-        verbose=False,
+        verbose=True,
         return_source_documents=True,
     )
+
 
     while True:
         query = input("User: ")
@@ -118,7 +113,6 @@ if __name__ == "__main__":
         source = str(Path(meta["source"]).name)
         page = meta["page"]
         print(f"Source: {source} -> Page: {page}\n")
-
 
 
 
