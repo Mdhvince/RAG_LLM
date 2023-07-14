@@ -4,3 +4,4 @@ ft-alignment/peft-checkpoint-local/*
 docs/
 deprecated/
 __pycache__/
+langchain_helpers/
