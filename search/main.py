@@ -30,7 +30,7 @@ if __name__ == "__main__":
     cs.load_document(docs_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type=vdb_type)
     cs.load_vector_database(persist_dir, vdb_type=vdb_type)
 
-    # Let's go
+    # Let's go chat with the knowledge base
     while True:
         query = input("\nHuman: ")
         cm.update(query)

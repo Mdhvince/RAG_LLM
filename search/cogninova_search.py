@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 from pathlib import Path
+from typing import List
 
 from langchain import PromptTemplate
 from langchain.document_loaders import PyPDFLoader
@@ -11,7 +12,15 @@ from transformers import AutoTokenizer
 
 
 class CogninovaSearch:
+    """This class is responsible for searching the knowledge base and generating answers to user queries"""
+
     def __init__(self, model_name, generation_config, llm, embedding):
+        """
+        :param model_name: The name of the model to use (HuggingFace model)
+        :param generation_config: The generation config object
+        :param llm: The language model
+        :param embedding: The embedding object
+        """
         self.gen_config = generation_config
         self.llm = llm
         self.embedding = embedding
@@ -19,7 +28,16 @@ class CogninovaSearch:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
 
 
-    def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma"):
+    def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma") -> None:
+        """
+        Load documents from a directory and create embeddings for them
+        :param document_dir: Directory containing the documents
+        :param persist_dir: Directory where the embeddings will be stored
+        :param chk_size: The size of the chunks to split the documents into
+        :param chk_overlap: The overlap between the chunks
+        :param vdb_type: The type of vector database to use
+        :return: None
+        """
         loaded_docs = []
         if isinstance(document_dir, str):
             document_dir = Path(document_dir)
@@ -62,14 +80,20 @@ class CogninovaSearch:
         else:
             raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
 
-    def load_vector_database(self, persist_dir, vdb_type="chroma"):
+    def load_vector_database(self, persist_dir, vdb_type="chroma") -> None:
+        """
+        Load the vector database from the persist directory
+        :param persist_dir: The directory where the vector database is stored
+        :param vdb_type: The type of vector database to use
+        :return: None
+        """
         if vdb_type == "chroma":
             self.vector_db = Chroma(persist_directory=persist_dir, embedding_function=self.embedding)
         else:
             raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
 
 
-    def search(self, query, k, search_type, filter_on=None):
+    def search(self, query, k, search_type, filter_on=None) -> List:
         """
         :param query: The query to search for (input from the user in natural language)
         :param k: Number of relevant chunks to return across all document. If filter is set on a document, return k
@@ -77,6 +101,7 @@ class CogninovaSearch:
         :param search_type: similarity or mmr
         :param filter_on: If set, filter the search on the document. The filter is a dictionary with one key. It can be
         either "source" or "page". (i.e. {"source":"docs/cs229_lectures/Lecture03.pdf"} or {"page": "1"})
+        :return: The search result
         """
         assert search_type in ["similarity", "mmr"], f"search_type must in ['similarity', 'mmr'] got {search_type}"
 
@@ -88,7 +113,7 @@ class CogninovaSearch:
         return result
 
 
-    def answer(self, query, search_result, chain_type="refine", rtp=None, verbose=False):
+    def answer(self, query, search_result, chain_type="refine", rtp=None, verbose=False) -> str:
         """
         :param query: The query to search for (input from the user in natural language)
         :param search_result: Result of the search using "similarity" or "mmr" in self.search()
@@ -154,7 +179,12 @@ class CogninovaSearch:
 
         return guess
 
-    def run_inference(self, prompt):
+    def run_inference(self, prompt) -> str:
+        """
+        Run inference on the prompt
+        :param prompt: The user query
+        :return: The answer to the query
+        """
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
         model_output = self.llm.generate(input_ids=input_ids, generation_config=self.gen_config)
         response = self.tokenizer.decode(model_output[0], skip_special_tokens=True)
@@ -162,7 +192,12 @@ class CogninovaSearch:
 
 
     @staticmethod
-    def reset_persist_directory(persist_dir):
+    def reset_persist_directory(persist_dir) -> None:
+        """
+        Delete the persist directory
+        :param persist_dir: The directory to delete
+        :return: None
+        """
         if not isinstance(persist_dir, str):
             persist_dir = str(persist_dir)
         if os.path.exists(persist_dir):
