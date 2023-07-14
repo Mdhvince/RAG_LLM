@@ -19,7 +19,6 @@ class CogninovaSearch:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
 
 
-
     def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma"):
         loaded_docs = []
         if isinstance(document_dir, str):

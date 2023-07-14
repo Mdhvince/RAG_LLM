@@ -3,3 +3,4 @@ ft-alignment/notebooks/
 ft-alignment/peft-checkpoint-local/*
 docs/
 deprecated/
+__pycache__/

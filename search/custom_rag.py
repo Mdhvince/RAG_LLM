@@ -1,17 +1,17 @@
 from pathlib import Path
 
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig
 
-from langchain_helpers.cogninova_search import CogninovaSearch
-from langchain_helpers.retrieval_template import RetrievalTemplate
+from search.cogninova_search import CogninovaSearch
+from search.retrieval_template import RetrievalTemplate
 
 
 if __name__ == "__main__":
     PROJECT_ROOT = Path(__file__).parent.parent
     persist_dir = str(PROJECT_ROOT / "docs/chroma/")
     docs_dir = str(PROJECT_ROOT / "docs")
-    embedding = HuggingFaceEmbeddings()  # I could have used directly an encoder-based model like "BERT"
+    embedding = HuggingFaceEmbeddings()
     vdb_type = "chroma"
 
     model_name = "google/flan-t5-small"
