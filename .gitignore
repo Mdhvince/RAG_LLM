@@ -1,7 +1,7 @@
 .idea/
-ft-alignment/notebooks/
-ft-alignment/peft-checkpoint-local/*
+deprecated/notebooks/
+deprecated/peft-checkpoint-local/*
 docs/
 deprecated/
 __pycache__/
-langchain_helpers/
+deprecated/langchain_helpers/
