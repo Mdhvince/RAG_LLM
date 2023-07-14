@@ -11,54 +11,63 @@ from transformers import AutoTokenizer
 
 
 class CogninovaSearch:
-    def __init__(self, model_name, generation_config, llm):
+    def __init__(self, model_name, generation_config, llm, embedding):
         self.gen_config = generation_config
         self.llm = llm
+        self.embedding = embedding
         self.vector_db = None
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
 
 
-    @staticmethod
-    def load_document(document_dir):
+
+    def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma"):
         loaded_docs = []
         if isinstance(document_dir, str):
             document_dir = Path(document_dir)
 
+        loaded_docs_dir = document_dir / ".loaded_docs/"
+        loaded_docs_dir.mkdir(exist_ok=True)
+        count_new_files_loaded = 0
         for file in document_dir.iterdir():
-            if file.suffix == ".pdf":
+            is_new_file = not (loaded_docs_dir / file.name).exists()
+
+            if not is_new_file: print(f"Skipping {file.name} since it is already loaded")
+
+            if file.suffix == ".pdf" and is_new_file:
+                print(f"Loading {file.name}")
                 loader = PyPDFLoader(str(file))
                 data_txt = loader.load()
                 loaded_docs.extend(data_txt)
-        return loaded_docs
 
+                shutil.copy(str(file), str(loaded_docs_dir / file.name))  # Copy the file to the loaded_docs_dir
+                count_new_files_loaded += 1
 
-    def store_embeddings(
-            self, embedding, persist_dir, loaded_docs, chk_size=1500, chk_overlap=500, vector_db_type="chroma"):
+        if count_new_files_loaded > 0:
+            print(f"Loaded {count_new_files_loaded} new files. Creating embeddings...")
+            self._store_embeddings(persist_dir, loaded_docs, chk_size, chk_overlap, vdb_type)
+            print(f"Created embeddings for {count_new_files_loaded} new files.")
 
-        if os.path.exists(persist_dir):
-            shutil.rmtree(persist_dir)
+    def _store_embeddings(self, persist_dir, loaded_docs, chk_size, chk_overlap, vdb_type):
 
-        # text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=500)
         text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
             self.tokenizer, chunk_size=chk_size, chunk_overlap=chk_overlap
         )
         splits = text_splitter.split_documents(loaded_docs)
 
-        if vector_db_type == "chroma":
+        if vdb_type == "chroma":
             # TODO: From here, search for professional alternatives (cloud based vector databases ?)
             self.vector_db = Chroma.from_documents(
-                documents=splits, embedding=embedding, persist_directory=persist_dir
+                documents=splits, embedding=self.embedding, persist_directory=persist_dir
             )
             self.vector_db.persist()
         else:
-            raise NotImplementedError(f"Vector database type {vector_db_type} not implemented")
+            raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
 
-    def vector_database(self, embedding, persist_dir, vector_db_type="chroma"):
-        if vector_db_type == "chroma":
-            self.vector_db = Chroma(persist_directory=persist_dir, embedding_function=embedding)
+    def load_vector_database(self, persist_dir, vdb_type="chroma"):
+        if vdb_type == "chroma":
+            self.vector_db = Chroma(persist_directory=persist_dir, embedding_function=self.embedding)
         else:
-            raise NotImplementedError(f"Vector database type {vector_db_type} not implemented")
-        return self.vector_db
+            raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
 
 
     def search(self, query, k, search_type, filter_on=None):
@@ -103,7 +112,7 @@ class CogninovaSearch:
             context_str = document_separator.join(context)
             prompt_template = PromptTemplate(template=rtp.stuff_template, input_variables=["context", "question"])
             prompt = prompt_template.format(context=context_str, question=query)
-            guess = self.run_inference(prompt)
+            guess = self._run_inference(prompt)
 
             if verbose:
                 print(f"Prompt\n {prompt}\n")
@@ -115,7 +124,7 @@ class CogninovaSearch:
             inputs = ["context", "question"]
             prompt_template = PromptTemplate(template=rtp.refine_template_start, input_variables=inputs)
             prompt = prompt_template.format(context=first_context, question=query)
-            guess = self.run_inference(prompt)
+            guess = self._run_inference(prompt)
             old_guess = guess
 
             if verbose:
@@ -131,7 +140,7 @@ class CogninovaSearch:
                     inputs = ["question", "guess", "context"]
                     prompt_template = PromptTemplate(template=rtp.refine_template_next, input_variables=inputs)
                     prompt = prompt_template.format(context=next_context, question=query, guess=guess)
-                    guess = self.run_inference(prompt)
+                    guess = self._run_inference(prompt)
 
                     guess_alpha_num = re.sub(r'\W+', '', guess)
                     if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
@@ -146,15 +155,19 @@ class CogninovaSearch:
 
         return guess
 
-    def run_inference(self, prompt):
+    def _run_inference(self, prompt):
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
         model_output = self.llm.generate(input_ids=input_ids, generation_config=self.gen_config)
         response = self.tokenizer.decode(model_output[0], skip_special_tokens=True)
         return response
 
 
-
-
+    @staticmethod
+    def reset_persist_directory(persist_dir):
+        if not isinstance(persist_dir, str):
+            persist_dir = str(persist_dir)
+        if os.path.exists(persist_dir):
+            shutil.rmtree(persist_dir)
 
 
 
