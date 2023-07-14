@@ -1,7 +1,7 @@
 
 
 
-class RetrievalTemplate:
+class CogninovaTemplate:
     def __init__(self):
         pass
 

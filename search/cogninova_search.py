@@ -113,17 +113,17 @@ class CogninovaSearch:
         return result
 
 
-    def answer(self, query, search_result, chain_type="refine", rtp=None, verbose=False) -> str:
+    def answer(self, query, search_result, chain_type="refine", template_obj=None, verbose=False) -> str:
         """
         :param query: The query to search for (input from the user in natural language)
         :param search_result: Result of the search using "similarity" or "mmr" in self.search()
         :param chain_type: Either "stuff" or "refine"
-        :param rtp: The RetrievalTemplate object
+        :param template_obj: The CogninovaTemplate object
         :param verbose: verbose bro!!
         :return: The answer to the query
         """
         assert chain_type in ["stuff", "refine"], f"chain_type must in ['stuff', 'refine'] got {chain_type}"
-        assert rtp is not None, "retrieval_template_obj must be provided"
+        assert template_obj is not None, "retrieval_template_obj must be provided"
         guess = ""
 
         if chain_type == "stuff":
@@ -134,7 +134,8 @@ class CogninovaSearch:
                 context.append(chunked_content)
 
             context_str = document_separator.join(context)
-            prompt_template = PromptTemplate(template=rtp.stuff_template, input_variables=["context", "question"])
+            prompt_template = PromptTemplate(
+                template=template_obj.stuff_template, input_variables=["context", "question"])
             prompt = prompt_template.format(context=context_str, question=query)
             guess = self.run_inference(prompt)
 
@@ -146,7 +147,7 @@ class CogninovaSearch:
             # First guess
             first_context = search_result[0].page_content
             inputs = ["context", "question"]
-            prompt_template = PromptTemplate(template=rtp.refine_template_start, input_variables=inputs)
+            prompt_template = PromptTemplate(template=template_obj.refine_template_start, input_variables=inputs)
             prompt = prompt_template.format(context=first_context, question=query)
             guess = self.run_inference(prompt)
             old_guess = guess
@@ -162,7 +163,7 @@ class CogninovaSearch:
                 for n, next_context in enumerate(other_contexts):
                     next_context = next_context.page_content
                     inputs = ["question", "guess", "context"]
-                    prompt_template = PromptTemplate(template=rtp.refine_template_next, input_variables=inputs)
+                    prompt_template = PromptTemplate(template=template_obj.refine_template_next, input_variables=inputs)
                     prompt = prompt_template.format(context=next_context, question=query, guess=guess)
                     guess = self.run_inference(prompt)
 

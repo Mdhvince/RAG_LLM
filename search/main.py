@@ -6,7 +6,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig
 
 from search.cogninova_memory import CogninovaMemory
 from search.cogninova_search import CogninovaSearch
-from search.retrieval_template import RetrievalTemplate
+from search.cogninova_template import CogninovaTemplate
 
 
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
 
     cm = CogninovaMemory()
-    rtp = RetrievalTemplate()
+    ct = CogninovaTemplate()
     cs = CogninovaSearch(model_name, gen_config, llm, embedding)
 
     cs.load_document(docs_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type=vdb_type)
@@ -38,13 +38,13 @@ if __name__ == "__main__":
         if cm.is_full():
             # Here I generate a new query (the standalone question)
             chat_history: str = cm.get_chat_history()
-            p_template = PromptTemplate(template=rtp.standalone_question_template, input_variables=["chat_history"])
+            p_template = PromptTemplate(template=ct.standalone_question_template, input_variables=["chat_history"])
             prompt = p_template.format(chat_history=chat_history)
             query = cs.run_inference(prompt)
             cm.optimize(query)
 
         search_result = cs.search(query, k=5, search_type="similarity", filter_on=None)
-        natural_answer = cs.answer(query, search_result, chain_type="refine", rtp=rtp, verbose=False)
+        natural_answer = cs.answer(query, search_result, chain_type="refine", template_obj=ct, verbose=False)
         cm.update(natural_answer)
 
         print(f"\nBot: {natural_answer}")
