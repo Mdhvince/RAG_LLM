@@ -52,3 +52,16 @@ class RetrievalTemplate:
                    "\nRefined Answer: "
         return template
 
+
+    @property
+    def standalone_question_template(self) -> str:
+        """
+        'chat_history' represents the input key
+        """
+        template = "Given the following conversation (chat history) and follow-up question, rephrase the follow-up " \
+                   "question to be a standalone question." \
+                   "\nChat history:" \
+                   "\n{chat_history}" \
+                   "\n\nYour Standalone question: "
+        return template
+

@@ -111,7 +111,7 @@ class CogninovaSearch:
             context_str = document_separator.join(context)
             prompt_template = PromptTemplate(template=rtp.stuff_template, input_variables=["context", "question"])
             prompt = prompt_template.format(context=context_str, question=query)
-            guess = self._run_inference(prompt)
+            guess = self.run_inference(prompt)
 
             if verbose:
                 print(f"Prompt\n {prompt}\n")
@@ -123,7 +123,7 @@ class CogninovaSearch:
             inputs = ["context", "question"]
             prompt_template = PromptTemplate(template=rtp.refine_template_start, input_variables=inputs)
             prompt = prompt_template.format(context=first_context, question=query)
-            guess = self._run_inference(prompt)
+            guess = self.run_inference(prompt)
             old_guess = guess
 
             if verbose:
@@ -139,7 +139,7 @@ class CogninovaSearch:
                     inputs = ["question", "guess", "context"]
                     prompt_template = PromptTemplate(template=rtp.refine_template_next, input_variables=inputs)
                     prompt = prompt_template.format(context=next_context, question=query, guess=guess)
-                    guess = self._run_inference(prompt)
+                    guess = self.run_inference(prompt)
 
                     guess_alpha_num = re.sub(r'\W+', '', guess)
                     if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
@@ -154,7 +154,7 @@ class CogninovaSearch:
 
         return guess
 
-    def _run_inference(self, prompt):
+    def run_inference(self, prompt):
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
         model_output = self.llm.generate(input_ids=input_ids, generation_config=self.gen_config)
         response = self.tokenizer.decode(model_output[0], skip_special_tokens=True)
