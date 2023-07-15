@@ -22,3 +22,4 @@ For the moment, I have only implemented:
 
 I am still looking for more things to implement. The repo is not meant to be a full-fledge product, I am just having some fun.
 
+[vid.webm](https://github.com/Mdhvince/RAG_LLM/assets/17160701/23dea16e-e274-4a0d-90ba-f55288b13b08)
