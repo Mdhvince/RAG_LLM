@@ -9,7 +9,6 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig
 from search.cogninova_memory import CogninovaMemory
 from search.cogninova_search import CogninovaSearch
 from search.cogninova_template import CogninovaTemplate
-from utils_ui import assistant_welcome_message, format_message
 
 
 model_name = "google/flan-t5-small"
@@ -26,10 +25,10 @@ def load_model():
     llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
     return tokenizer, llm
 
+
 @st.cache
 def load_vectors(cs, persist_dir, vdb_type):
     cs.load_vector_database(persist_dir, vdb_type=vdb_type)
-
 
 def read_debug():
     text = ""
@@ -37,6 +36,7 @@ def read_debug():
         with open(debug_filepath, "r") as f:
             text = f.read().replace("\n", "<br>")
     return text
+
 
 def reload():
     return st.experimental_rerun
@@ -54,29 +54,30 @@ if __name__ == "__main__":
     with st.sidebar:
         p_bar = st.progress(0)
 
-        with st.expander("#### Debug"):
+        with st.expander("#### :ladybug: Debug"):
             if st.button("Refresh"):
                 text = read_debug()
                 st.write(text, unsafe_allow_html=True)
 
-        with st.expander("#### Configuration"):
+        with st.expander("#### :wrench: Configuration"):
 
-            st.markdown("##### Search configuration")
+            st.markdown("<center><strong>Search configuration</strong></center>", unsafe_allow_html=True)
             search_type = st.selectbox("Search type", ("Similarity", "MMR"), index=1)
             search_type = search_type.lower()
             k_search = st.slider("K-search", min_value=1, max_value=15, value=2, step=1)
 
-            st.markdown("##### Model configuration")
+            st.markdown("<center><strong>Model configuration</strong></center>", unsafe_allow_html=True)
             chain_type = st.selectbox("Chain type", ("Stuff", "Refine"), index=1)
             chain_type = chain_type.lower()
 
-            disable = True
+            disable = False
             top_k = st.slider("Top k", min_value=1, max_value=50, value=30, step=1, disabled=disable)
             top_p = st.slider("Top p", min_value=0.1, max_value=1.0, value=1.0, step=0.05, disabled=disable)
             mnt = st.slider("Max new tokens", min_value=10, max_value=1000, value=200, step=10, disabled=disable)
             temp = st.slider("Temperature", min_value=0.1, max_value=2.0, value=0.5, step=0.01, disabled=disable)
             nbs = st.slider("Beam width", min_value=1, max_value=3, value=2, step=1, disabled=disable)
             gen_config = GenerationConfig(temperature=temp, max_new_tokens=mnt, top_k=top_k, top_p=top_p, num_beams=nbs)
+
 
         clear_history = st.button(":wastebasket: Clear history", use_container_width=True)
 

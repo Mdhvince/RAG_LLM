@@ -5,3 +5,5 @@ docs/
 deprecated/
 __pycache__/
 deprecated/langchain_helpers/
+avatar*
+debug.txt
