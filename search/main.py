@@ -15,6 +15,7 @@ if __name__ == "__main__":
     docs_dir = str(PROJECT_ROOT / "docs")
     embedding = HuggingFaceEmbeddings()
     vdb_type = "chroma"
+    chain_type = "refine"
 
     model_name = "google/flan-t5-small"
     tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
@@ -31,23 +32,22 @@ if __name__ == "__main__":
     cs.load_vector_database(persist_dir, vdb_type=vdb_type)
 
     # Let's go chat with the knowledge base
-    while True:
-        query = input("\nHuman: ")
-        cm.update(query)
+    query = "Test"
+    cm.update(query)
 
-        if cm.is_full():
-            # Here I generate a new query (the standalone question)
-            chat_history: str = cm.get_chat_history()
-            p_template = PromptTemplate(template=ct.standalone_question_template, input_variables=["chat_history"])
-            prompt = p_template.format(chat_history=chat_history)
-            query = cs.run_inference(prompt)
-            cm.optimize(query)
+    if cm.is_full():
+        # Here I generate a new query (the standalone question)
+        chat_history: str = cm.get_chat_history()
+        p_template = PromptTemplate(template=ct.standalone_question_template, input_variables=["chat_history"])
+        prompt = p_template.format(chat_history=chat_history)
+        query = cs.run_inference(prompt)
+        cm.optimize(query)
 
-        search_result = cs.search(query, k=5, search_type="similarity", filter_on=None)
-        natural_answer = cs.answer(query, search_result, chain_type="refine", template_obj=ct, verbose=False)
-        cm.update(natural_answer)
+    search_result = cs.search(query, k=5, search_type="similarity", filter_on=None)
+    natural_answer = cs.answer(query, search_result, template_obj=ct, chain_type=chain_type)
+    cm.update(natural_answer)
 
-        print(f"\nBot: {natural_answer}")
+    print(f"\nBot: {natural_answer}")
 
 
 

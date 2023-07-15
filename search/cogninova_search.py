@@ -21,12 +21,16 @@ class CogninovaSearch:
         :param llm: The language model
         :param embedding: The embedding object
         """
+
         self.gen_config = generation_config
         self.llm = llm
         self.embedding = embedding
         self.vector_db = None
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
-
+        
+        # create a file debug.txt to store the debug messages. the file will be overwritten each time the app is run.
+        # later in the code, we will write to this file using self.f.write("message")
+        self.f = open("debug.txt", "w")
 
     def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma") -> None:
         """
@@ -92,7 +96,6 @@ class CogninovaSearch:
         else:
             raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
 
-
     def search(self, query, k, search_type, filter_on=None) -> List:
         """
         :param query: The query to search for (input from the user in natural language)
@@ -112,22 +115,28 @@ class CogninovaSearch:
 
         return result
 
-
-    def answer(self, query, search_result, chain_type="refine", template_obj=None, verbose=False) -> str:
+    def answer(self, query, search_result, template_obj=None, chain_type="refine") -> str:
         """
         :param query: The query to search for (input from the user in natural language)
         :param search_result: Result of the search using "similarity" or "mmr" in self.search()
-        :param chain_type: Either "stuff" or "refine"
         :param template_obj: The CogninovaTemplate object
-        :param verbose: verbose bro!!
+        :param chain_type: The type of chain to use. Can be "refine" or "stuff"
         :return: The answer to the query
         """
-        assert chain_type in ["stuff", "refine"], f"chain_type must in ['stuff', 'refine'] got {chain_type}"
+
         assert template_obj is not None, "retrieval_template_obj must be provided"
+        assert chain_type in ["refine", "stuff"], f"chain_type must in ['refine', 'stuff'] got {chain_type}"
         guess = ""
 
+        self.f.write(
+            "<h2 style='background-color: #404854; padding:10px; border-radius:5px; margin-bottom:3px;'>"
+            f"⛓️ Chain type: {chain_type}"
+            "</h2>"
+        )
+
+
         if chain_type == "stuff":
-            document_separator = "\n<<<<.>>>>\n"
+            document_separator = "\n\n"
             context = []
             for res in search_result:
                 chunked_content = res.page_content
@@ -139,9 +148,16 @@ class CogninovaSearch:
             prompt = prompt_template.format(context=context_str, question=query)
             guess = self.run_inference(prompt)
 
-            if verbose:
-                print(f"Prompt\n {prompt}\n")
-                print(f"Answer: {guess}\n")
+            guess_alpha_num = re.sub(r'\W+', '', guess)
+            if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
+                guess = "# 🤷‍♂️"
+
+            self.f.write("<div style='background-color: #5F6B7C; padding:10px; border-radius:5px;'>")
+            self.f.write("<strong style='color: #1C2127;'>⌨️ Retrieval Prompt</strong><br>")
+            self.f.write(f"<em><strong>{prompt}</strong></em>")
+            self.f.write(f"<p style='color:#EC9A3C';><strong>{guess}</strong></p>")
+            self.f.write("</div>")
+
 
         elif chain_type == "refine":
             # First guess
@@ -150,11 +166,18 @@ class CogninovaSearch:
             prompt_template = PromptTemplate(template=template_obj.refine_template_start, input_variables=inputs)
             prompt = prompt_template.format(context=first_context, question=query)
             guess = self.run_inference(prompt)
+
+            guess_alpha_num = re.sub(r'\W+', '', guess)
+            if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
+                guess = "### 🤷‍♂️"
+
             old_guess = guess
 
-            if verbose:
-                print(f"Prompt\n {prompt}\n")
-                print(f"Guess 1: {guess}")
+            self.f.write("<div style='background-color: #5F6B7C; padding:10px; border-radius:5px;'>")
+            self.f.write("<strong style='color: #1C2127;'>⌨️ Retrieval Prompt n°1</strong><br>")
+            self.f.write(f"<em><strong>{prompt}</strong></em>")
+            self.f.write(f"<p style='color:#EC9A3C';><strong>{guess}</strong></p>")
+            self.f.write("</div>")
 
             # Refine the answer
             other_contexts = search_result[1:]
@@ -171,13 +194,18 @@ class CogninovaSearch:
                     if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
                         guess = old_guess
 
+                    self.f.write("<div style='background-color: #5F6B7C; padding:10px; border-radius:5px;'>")
+                    self.f.write(f"<strong style='color: #1C2127;'>⌨️ Retrieval Prompt n°{n+2}</strong><br>")
+                    self.f.write(f"<em><strong>{prompt}</strong></em>")
+                    self.f.write(f"<p style='color:#EC9A3C';><strong>{guess}</strong></p>")
+                    self.f.write("</div>")
 
-                    if verbose:
-                        print(f"Prompt\n {prompt}\n")
-                        print(f"Guess {n + 2}: {guess}\n\n")
 
-                if verbose: print(f"Final Answer: {guess}")
+                self.f.write("<div style='background-color: #5F6B7C; padding:10px; border-radius:5px;'>")
+                self.f.write(f"<p style='color:#EC9A3C';><strong>Final Answer: {guess}</strong></p>")
+                self.f.write("</div>")
 
+        self.f.flush()
         return guess
 
     def run_inference(self, prompt) -> str:
@@ -203,20 +231,3 @@ class CogninovaSearch:
             persist_dir = str(persist_dir)
         if os.path.exists(persist_dir):
             shutil.rmtree(persist_dir)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
