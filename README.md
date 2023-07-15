@@ -18,7 +18,7 @@ For the moment, I have only implemented:
 - [x] Prompt generation regarding the chain type
 - [x] Memory (For follow-up conversation)
 - [x] Prompt generation for memory
-- [x] A Nice UI using [Streamlit](https://streamlit.io/) + a debug section so follow the LLM Thought process (Made from scratch)
+- [x] A Nice UI using [Streamlit](https://streamlit.io/) + a debug section to follow the LLM Thought process (Made from scratch)
 
 I am still looking for more things to implement. The repo is not meant to be a full-fledge product, I am just having some fun.  
 
