@@ -24,5 +24,3 @@ I am still looking for more things to implement. The repo is not meant to be a f
 
 Note: Because of the limited hardware I have, I am using a small model (flan-t5-small) with no additional training. The goal is to have a working prototype of 
 the things described above.
-
-[vid.webm](https://github.com/Mdhvince/RAG_LLM/assets/17160701/23dea16e-e274-4a0d-90ba-f55288b13b08)
