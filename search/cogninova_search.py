@@ -150,7 +150,7 @@ class CogninovaSearch:
 
             guess_alpha_num = re.sub(r'\W+', '', guess)
             if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
-                guess = "# 🤷‍♂️"
+                guess = "I don't know."
 
             self.f.write("<div style='background-color: #5F6B7C; padding:10px; border-radius:5px;'>")
             self.f.write("<strong style='color: #1C2127;'>⌨️ Retrieval Prompt</strong><br>")
@@ -169,7 +169,7 @@ class CogninovaSearch:
 
             guess_alpha_num = re.sub(r'\W+', '', guess)
             if guess_alpha_num.strip() == "" or len(guess_alpha_num) <= 1:
-                guess = "### 🤷‍♂️"
+                guess = "I don't know."
 
             old_guess = guess
 
