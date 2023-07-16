@@ -39,7 +39,7 @@ class CogninovaTemplate:
         """
         template = "question: {question}" \
                    "\noriginal answer: {guess}" \
-                   "\nWe have the opportunity to refine the original answer (only if needed) " \
+                   "\n\nWe have the opportunity to refine the original answer (only if needed) " \
                    "with the new context below.\n" \
                    "\n{context}\n" \
                    "\nGiven the new context, refine the original answer to better answer the question. " \
