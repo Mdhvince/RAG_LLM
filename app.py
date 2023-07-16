@@ -17,7 +17,7 @@ from search.cogninova_search import CogninovaSearch
 from search.cogninova_template import CogninovaTemplate
 
 
-model_name = "google/flan-t5-small"
+model_name = "google/flan-t5-large"
 persist_dir = "docs/chroma/"
 docs_dir = "docs"
 embedding = HuggingFaceEmbeddings()
