@@ -17,7 +17,7 @@ from search.cogninova_search import CogninovaSearch
 from search.cogninova_template import CogninovaTemplate
 
 
-model_name = "google/flan-t5-large"
+model_name = "tiiuae/falcon-rw-1b"  # "google/flan-t5-large"
 persist_dir = "docs/chroma/"
 docs_dir = "docs"
 embedding = HuggingFaceEmbeddings()
@@ -27,8 +27,8 @@ debug_filepath = "debug.txt"
 
 @st.cache_resource
 def load_model():
-    llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
-    # llm = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
+    # llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
+    llm = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
     cm = CogninovaMemory()
     return llm, cm
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
             chain_type = chain_type.lower()
 
             disable = False
-            top_k = st.slider("Top k", min_value=1, max_value=50, value=30, step=1, disabled=disable)
+            top_k = st.slider("Top k", min_value=1, max_value=50, value=5, step=1, disabled=disable)
             top_p = st.slider("Top p", min_value=0.1, max_value=1.0, value=1.0, step=0.05, disabled=disable)
             mnt = st.slider("Max new tokens", min_value=10, max_value=1000, value=200, step=10, disabled=disable)
             temp = st.slider("Temperature", min_value=0.1, max_value=2.0, value=0.5, step=0.01, disabled=disable)
