@@ -10,7 +10,7 @@ class CogninovaTemplate:
         """
         'context' and 'question' represents the input keys
         """
-        template = "Use the following pieces of context to answer the human's question at the end. " \
+        template = "Answer the human's question using the context information. " \
                    "If you don't know the answer, just say that you don't know, don't try to make up an answer." \
                    "\nContext information is below:\n" \
                    "\n{context}" \
@@ -26,7 +26,7 @@ class CogninovaTemplate:
         """
         template = "\nContext information is below:\n" \
                    "\n{context}\n" \
-                   "\nGiven the context information and not prior knowledge, answer any questions" \
+                   "\nGiven the context information, answer any questions" \
                    "\nquestion: {question}" \
                    "\nHelpful Answer: "
         return template
@@ -39,11 +39,9 @@ class CogninovaTemplate:
         """
         template = "question: {question}" \
                    "\noriginal answer: {guess}" \
-                   "\n\nWe have the opportunity to refine the original answer (only if needed) " \
-                   "with the new context below.\n" \
+                   "\n\nRefine the original answer (only if needed) with the new context below.\n" \
                    "\n{context}\n" \
-                   "\nGiven the new context, refine the original answer to better answer the question. " \
-                   "If the context is not useful, return the original answer." \
+                   "\nIf the context is not useful, return the original answer." \
                    "\nRefined Answer: "
         return template
 
