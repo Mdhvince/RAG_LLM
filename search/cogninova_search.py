@@ -214,7 +214,7 @@ class CogninovaSearch:
         :param prompt: The user query
         :return: The answer to the query
         """
-        input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
+        input_ids = self.tokenizer(prompt, return_tensors="pt", max_length=2000).input_ids
         model_output = self.llm.generate(input_ids=input_ids, generation_config=self.gen_config)
         response = self.tokenizer.decode(model_output[0], skip_special_tokens=True)
         return response
