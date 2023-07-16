@@ -1,10 +1,16 @@
 import time
+from copy import copy, deepcopy
 from pathlib import Path
 
 import streamlit as st
+import pandas as pd
 from langchain import PromptTemplate
 from langchain.embeddings import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig
+
+try:
+    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, GenerationConfig, AutoModelForCausalLM
+except ImportError:
+    st.warning("Please reload the page.", icon=":warning:")
 
 from search.cogninova_memory import CogninovaMemory
 from search.cogninova_search import CogninovaSearch
@@ -21,9 +27,10 @@ debug_filepath = "debug.txt"
 
 @st.cache_resource
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
     llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
-    return tokenizer, llm
+    # llm = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
+    cm = CogninovaMemory()
+    return llm, cm
 
 
 @st.cache
@@ -42,27 +49,23 @@ def reload():
     return st.experimental_rerun
 
 
+def highlight_memory(s):
+    return ['background-color: #72CA9B; color:black' if i >= len(s)-2 else '' for i in range(len(s))]
+
+
 if __name__ == "__main__":
-
     st.set_page_config(layout="wide", page_title="Cogninova", page_icon=":taco:", initial_sidebar_state="expanded")
-    assistant_avatar = "avatar.png"
-    user_avatar = "avatar_user.png"
-
-    tokenizer, llm = load_model()
+    assistant_avatar = "medias/avatar.png"
+    user_avatar = "medias/avatar_user.png"
 
     # Setting up the sidebar
     with st.sidebar:
         p_bar = st.progress(0)
 
-        with st.expander("#### :ladybug: Debug"):
-            if st.button("Refresh"):
-                text = read_debug()
-                st.write(text, unsafe_allow_html=True)
-
         with st.expander("#### :wrench: Configuration"):
 
             st.markdown("<center><strong>Search configuration</strong></center>", unsafe_allow_html=True)
-            search_type = st.selectbox("Search type", ("Similarity", "MMR"), index=1)
+            search_type = st.selectbox("Search type", ("Similarity", "MMR"), index=0)
             search_type = search_type.lower()
             k_search = st.slider("K-search", min_value=1, max_value=15, value=2, step=1)
 
@@ -79,30 +82,42 @@ if __name__ == "__main__":
             gen_config = GenerationConfig(temperature=temp, max_new_tokens=mnt, top_k=top_k, top_p=top_p, num_beams=nbs)
 
 
+        with st.expander("#### :ladybug: Debug"):
+            debug_placeholder = st.empty()
+            debug_placeholder.write(read_debug(), unsafe_allow_html=True)
+
+        with st.expander("#### :brain: Working Memory"):
+            memory_placeholder = st.empty()
+            memory_placeholder.write("No memory yet.", unsafe_allow_html=True)
+
         clear_history = st.button(":wastebasket: Clear history", use_container_width=True)
 
-    cm = CogninovaMemory()
+    # Setting up the brain
+    llm, cm = load_model()
+    # cm = CogninovaMemory()
     ct = CogninovaTemplate()
     cs = CogninovaSearch(model_name, gen_config, llm, embedding)
     cs.load_vector_database(persist_dir, vdb_type=vdb_type)
+    debug_placeholder.write(read_debug(), unsafe_allow_html=True)
 
-
-    # Prepare the chat
+    # Setting up the chat
     query = st.chat_input()
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
+
     if clear_history and "messages" in st.session_state:
         st.session_state.messages = []
         cm.clear()
-        with open(debug_filepath, "w") as f:
-            f.write("")
+        with open(debug_filepath, "w") as f: f.write("")
+        debug_placeholder.write(read_debug(), unsafe_allow_html=True)
+
 
     for msg in st.session_state.messages:
         st.chat_message(msg["role"], avatar=msg["avatar"]).write(msg["content"], unsafe_allow_html=True)
 
-
+    # Let's chat
     if query:
         # Query
         with st.chat_message("user", avatar=user_avatar):
@@ -110,11 +125,14 @@ if __name__ == "__main__":
             st.write(query, unsafe_allow_html=True)
 
         cm.update(query)
+        memory_for_ui = list(cm.memory)
+
         if cm.is_full():
             chat_history: str = cm.get_chat_history()
             p_template = PromptTemplate(template=ct.standalone_question_template, input_variables=["chat_history"])
             prompt = p_template.format(chat_history=chat_history)
             query = cs.run_inference(prompt)
+            memory_for_ui.append("Standalone question: " + query)
             cm.optimize(query)
 
         # Search
@@ -124,7 +142,9 @@ if __name__ == "__main__":
         with st.chat_message("assistant", avatar=assistant_avatar):
             message_placeholder = st.empty()
             full_response = ""
-            natural_answer = cs.answer(query, search_result, template_obj=ct, chain_type=chain_type)
+
+            with st.spinner(":thinking_face:"):
+                natural_answer = cs.answer(query, search_result, template_obj=ct, chain_type=chain_type)
             cm.update(natural_answer)
 
             st.session_state.messages.append(
@@ -139,3 +159,26 @@ if __name__ == "__main__":
                 p_bar.progress((n + 1) / len(array_response))
 
             message_placeholder.markdown(full_response)
+            memory_for_ui.append("Assistant: " + natural_answer)
+
+        debug_placeholder.write(read_debug(), unsafe_allow_html=True)
+
+
+    with st.sidebar:
+        try:
+            df = pd.DataFrame(memory_for_ui, columns=['Memory'])
+        except NameError:
+            df = pd.DataFrame([], columns=['Memory'])
+        with st.expander("#### :brain: Working Memory"):
+            df = df.style.apply(highlight_memory)
+            memory_placeholder.dataframe(df, use_container_width=True, hide_index=True)
+
+        # clear_history = st.button(":wastebasket: Clear history", use_container_width=True)
+
+    # if clear_history and "messages" in st.session_state:
+    #     st.session_state.messages = []
+    #     cm.clear()
+    #     with open(debug_filepath, "w") as f: f.write("")
+    #     debug_placeholder.write(read_debug(), unsafe_allow_html=True)
+
+
