@@ -22,5 +22,25 @@ For the moment, I have only implemented:
 
 I am still looking for more things to implement. The repo is not meant to be a full-fledge product, I am just having some fun.  
 
-Note: Because of the limited hardware I have, I am using a small model (flan-t5-small) with no additional training. The goal is to have a working prototype of 
+Note: Because of the limited hardware I have, I am using a small model (flan-t5-large) with no additional training. The goal is to have a working prototype of 
 the things described above.
+
+## The memory implemented
+For this project I have implemented a memory in order to handle follow-up conversation. The memory is of length 3 and is implemented as a FIFO queue.
+Here is an example of how it works:
+- User: What is the weather today in Paris?
+- LLM: It is sunny in Paris today.
+- User: What about tomorrow?
+
+From this point, the memory will be **full** (length 3), so I trigger the LLM in order to generate a standalone question that will replace all the history in the memory.
+
+- LLM (standalone): What is the weather tomorrow in Paris?
+
+With this approach, I am able to handle follow-up conversation and keep a clean memory.  
+Here is an example from my app:
+
+![memory](documentation/memory.png)
+
+We can see that the 3rd question **How does it work?** do not contain any information about **saliency map**. But using the history, the LLM is able 
+to generate a standalone question that is relevant: **How does the saliency map work?**.
+
