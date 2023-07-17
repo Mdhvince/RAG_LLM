@@ -12,30 +12,26 @@ try:
 except ImportError:
     st.warning("Please reload the page.", icon=":warning:")
 
+import utils
 from search.cogninova_memory import CogninovaMemory
 from search.cogninova_search import CogninovaSearch
 from search.cogninova_template import CogninovaTemplate
 
 
-model_name = "tiiuae/falcon-rw-1b"  # "google/flan-t5-large"
-persist_dir = "docs/chroma/"
-docs_dir = "docs"
 embedding = HuggingFaceEmbeddings()
-vdb_type = "chroma"
 debug_filepath = "debug.txt"
 
 
 @st.cache_resource
-def load_model():
-    # llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
-    llm = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
+def load_model(model_name):
+    llm = AutoModelForSeq2SeqLM.from_pretrained(model_name, device_map="auto")
     cm = CogninovaMemory()
     return llm, cm
 
 
 @st.cache
 def load_vectors(cs, persist_dir, vdb_type):
-    cs.load_vector_database(persist_dir, vdb_type=vdb_type)
+    cs._load_vector_database(persist_dir, vdb_type=vdb_type)
 
 def read_debug():
     text = ""
@@ -57,6 +53,7 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide", page_title="Cogninova", page_icon=":taco:", initial_sidebar_state="expanded")
     assistant_avatar = "medias/avatar.png"
     user_avatar = "medias/avatar_user.png"
+    cfg, cfg_vs, cfg_search, cfg_model = utils.get_config()
 
     # Setting up the sidebar
     with st.sidebar:
@@ -75,12 +72,10 @@ if __name__ == "__main__":
 
             disable = False
             top_k = st.slider("Top k", min_value=1, max_value=50, value=5, step=1, disabled=disable)
-            top_p = st.slider("Top p", min_value=0.1, max_value=1.0, value=1.0, step=0.05, disabled=disable)
+            top_p = st.slider("Top p", min_value=0.1, max_value=1.0, value=0.95, step=0.05, disabled=disable)
             mnt = st.slider("Max new tokens", min_value=10, max_value=1000, value=200, step=10, disabled=disable)
-            temp = st.slider("Temperature", min_value=0.1, max_value=2.0, value=0.5, step=0.01, disabled=disable)
+            temp = st.slider("Temperature", min_value=0.1, max_value=2.0, value=0.1, step=0.01, disabled=disable)
             nbs = st.slider("Beam width", min_value=1, max_value=3, value=2, step=1, disabled=disable)
-            gen_config = GenerationConfig(temperature=temp, max_new_tokens=mnt, top_k=top_k, top_p=top_p, num_beams=nbs)
-
 
         with st.expander("#### :ladybug: Debug"):
             debug_placeholder = st.empty()
@@ -92,12 +87,21 @@ if __name__ == "__main__":
 
         clear_history = st.button(":wastebasket: Clear history", use_container_width=True)
 
+        # Rewriting into the config after value change from the UI
+        cfg_search["search_type"] = f"{search_type}"
+        cfg_search["chain_type"] = f"{chain_type}"
+        cfg_search["k_return"] = f"{k_search}"
+        cfg_model["top_k"] = f"{top_k}"
+        cfg_model["top_p"] = f"{top_p}"
+        cfg_model["max_new_tokens"] = f"{mnt}"
+        cfg_model["temperature"] = f"{temp}"
+        cfg_model["num_beams"] = f"{nbs}"
+
     # Setting up the brain
-    llm, cm = load_model()
-    # cm = CogninovaMemory()
     ct = CogninovaTemplate()
-    cs = CogninovaSearch(model_name, gen_config, llm, embedding)
-    cs.load_vector_database(persist_dir, vdb_type=vdb_type)
+    llm, cm = load_model(cfg_model.get("name"))
+    cs = CogninovaSearch(cfg_model, cfg_search, cfg_vs, llm, embedding)
+
     debug_placeholder.write(read_debug(), unsafe_allow_html=True)
 
     # Setting up the chat
@@ -136,7 +140,7 @@ if __name__ == "__main__":
             cm.optimize(query)
 
         # Search
-        search_result = cs.search(query, k=k_search, search_type=search_type, filter_on=None)
+        search_result = cs.search(query, filter_on=None)
 
         # Answer
         with st.chat_message("assistant", avatar=assistant_avatar):
@@ -144,7 +148,7 @@ if __name__ == "__main__":
             full_response = ""
 
             with st.spinner(":thinking_face:"):
-                natural_answer = cs.answer(query, search_result, template_obj=ct, chain_type=chain_type)
+                natural_answer = cs.answer(query, search_result, template_obj=ct)
             cm.update(natural_answer)
 
             st.session_state.messages.append(
@@ -173,12 +177,5 @@ if __name__ == "__main__":
             df = df.style.apply(highlight_memory)
             memory_placeholder.dataframe(df, use_container_width=True, hide_index=True)
 
-        # clear_history = st.button(":wastebasket: Clear history", use_container_width=True)
-
-    # if clear_history and "messages" in st.session_state:
-    #     st.session_state.messages = []
-    #     cm.clear()
-    #     with open(debug_filepath, "w") as f: f.write("")
-    #     debug_placeholder.write(read_debug(), unsafe_allow_html=True)
 
 

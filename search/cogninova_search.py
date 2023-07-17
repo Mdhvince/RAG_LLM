@@ -8,41 +8,57 @@ from langchain import PromptTemplate
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, GenerationConfig
+
+
+
 
 
 class CogninovaSearch:
     """This class is responsible for searching the knowledge base and generating answers to user queries"""
 
-    def __init__(self, model_name, generation_config, llm, embedding):
+    def __init__(self, cfg_model, cfg_search, cfg_vs, llm, embedding):
         """
-        :param model_name: The name of the model to use (HuggingFace model)
-        :param generation_config: The generation config object
+        :param cfg_model: The model configuration
+        :param cfg_search: The search configuration
+        :param cfg_vs: The vector storage configuration
         :param llm: The language model
         :param embedding: The embedding object
         """
+        self.cfg_model = cfg_model
+        self.cfg_search = cfg_search
+        self.cfg_vs = cfg_vs
+        self.search_type = self.cfg_search.get("search_type")
+        self.k = self.cfg_search.getint("k_return")
+        self.chain_type = self.cfg_search.get("chain_type")
+        self.persist_dir = self.cfg_vs.get("persist_dir")
+        self.vdb_type = self.cfg_vs.get("vdb_type")
 
-        self.gen_config = generation_config
+        self.gen_config = GenerationConfig(
+            temperature=self.cfg_model.getfloat("temperature"),
+            top_k=self.cfg_model.getint("top_k"),
+            top_p=self.cfg_model.getfloat("top_p"),
+            num_beams=self.cfg_model.getint("num_beams"),
+            max_new_tokens=self.cfg_model.getint("max_new_tokens"),
+        )
         self.llm = llm
         self.embedding = embedding
         self.vector_db = None
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
+        self.tokenizer = AutoTokenizer.from_pretrained(self.cfg_model.get("name"), device_map="auto")
         
         # create a file debug.txt to store the debug messages. the file will be overwritten each time the app is run.
         # later in the code, we will write to this file using self.f.write("message")
         self.f = open("debug.txt", "w")
 
-    def load_document(self, document_dir, persist_dir, chk_size=1500, chk_overlap=500, vdb_type="chroma") -> None:
+        self._load_document()
+        self._load_vector_database()
+
+    def _load_document(self) -> None:
         """
         Load documents from a directory and create embeddings for them
-        :param document_dir: Directory containing the documents
-        :param persist_dir: Directory where the embeddings will be stored
-        :param chk_size: The size of the chunks to split the documents into
-        :param chk_overlap: The overlap between the chunks
-        :param vdb_type: The type of vector database to use
-        :return: None
         """
         loaded_docs = []
+        document_dir = self.cfg_vs.get("docs_dir")
         if isinstance(document_dir, str):
             document_dir = Path(document_dir)
 
@@ -65,77 +81,72 @@ class CogninovaSearch:
 
         if count_new_files_loaded > 0:
             print(f"Loaded {count_new_files_loaded} new files. Creating embeddings...")
-            self._store_embeddings(persist_dir, loaded_docs, chk_size, chk_overlap, vdb_type)
+
+            self._store_embeddings(loaded_docs)
             print(f"Created embeddings for {count_new_files_loaded} new files.")
 
-    def _store_embeddings(self, persist_dir, loaded_docs, chk_size, chk_overlap, vdb_type):
-
+    def _store_embeddings(self, loaded_docs):
         text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
-            self.tokenizer, chunk_size=chk_size, chunk_overlap=chk_overlap
+            self.tokenizer,
+            chunk_size=self.cfg_vs.getint("chunk_size"),
+            chunk_overlap=self.cfg_vs.getint("chunk_overlap")
         )
         splits = text_splitter.split_documents(loaded_docs)
 
-        if vdb_type == "chroma":
+        if self.vdb_type == "chroma":
             # TODO: From here, search for professional alternatives (cloud based vector databases ?)
             self.vector_db = Chroma.from_documents(
-                documents=splits, embedding=self.embedding, persist_directory=persist_dir
+                documents=splits, embedding=self.embedding, persist_directory=self.persist_dir
             )
             self.vector_db.persist()
         else:
-            raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
+            raise NotImplementedError(f"Vector database type {self.vdb_type} not implemented")
 
-    def load_vector_database(self, persist_dir, vdb_type="chroma") -> None:
+    def _load_vector_database(self) -> None:
         """
         Load the vector database from the persist directory
-        :param persist_dir: The directory where the vector database is stored
-        :param vdb_type: The type of vector database to use
-        :return: None
         """
-        if vdb_type == "chroma":
-            self.vector_db = Chroma(persist_directory=persist_dir, embedding_function=self.embedding)
+        if self.vdb_type == "chroma":
+            self.vector_db = Chroma(persist_directory=self.persist_dir, embedding_function=self.embedding)
         else:
-            raise NotImplementedError(f"Vector database type {vdb_type} not implemented")
+            raise NotImplementedError(f"Vector database type {self.vdb_type} not implemented")
 
-    def search(self, query, k, search_type, filter_on=None) -> List:
+    def search(self, query, filter_on=None) -> List:
         """
         :param query: The query to search for (input from the user in natural language)
-        :param k: Number of relevant chunks to return across all document. If filter is set on a document, return k
-        chunk in the doc.
-        :param search_type: similarity or mmr
         :param filter_on: If set, filter the search on the document. The filter is a dictionary with one key. It can be
         either "source" or "page". (i.e. {"source":"docs/cs229_lectures/Lecture03.pdf"} or {"page": "1"})
-        :return: The search result
         """
-        assert search_type in ["similarity", "mmr"], f"search_type must in ['similarity', 'mmr'] got {search_type}"
+        assert self.search_type in ["similarity", "mmr"], \
+            f"search_type must in ['similarity', 'mmr'] got {self.search_type}"
 
-        if search_type == "similarity":
-            result = self.vector_db.similarity_search(query, k=k, filter=filter_on)
+
+        if self.search_type == "similarity":
+            result = self.vector_db.similarity_search(query, k=self.k, filter=filter_on)
         else:  # mmr
-            result = self.vector_db.max_marginal_relevance_search(query, k=k, filter=filter_on)
+            result = self.vector_db.max_marginal_relevance_search(query, k=self.k, filter=filter_on)
 
         return result
 
-    def answer(self, query, search_result, template_obj=None, chain_type="refine") -> str:
+    def answer(self, query, search_result, template_obj=None) -> str:
         """
         :param query: The query to search for (input from the user in natural language)
         :param search_result: Result of the search using "similarity" or "mmr" in self.search()
         :param template_obj: The CogninovaTemplate object
-        :param chain_type: The type of chain to use. Can be "refine" or "stuff"
         :return: The answer to the query
         """
-
         assert template_obj is not None, "retrieval_template_obj must be provided"
-        assert chain_type in ["refine", "stuff"], f"chain_type must in ['refine', 'stuff'] got {chain_type}"
+        assert self.chain_type in ["refine", "stuff"], f"chain_type must in ['refine', 'stuff'] got {self.chain_type}"
+
         guess = ""
 
         self.f.write(
             "<h2 style='background-color: #404854; padding:10px; border-radius:5px; margin-bottom:3px;'>"
-            f"⛓️ Chain type: {chain_type}"
+            f"⛓️ Chain type: {self.chain_type}"
             "</h2>"
         )
 
-
-        if chain_type == "stuff":
+        if self.chain_type == "stuff":
             document_separator = "\n\n"
             context = []
             for res in search_result:
@@ -159,7 +170,7 @@ class CogninovaSearch:
             self.f.write("</div>")
 
 
-        elif chain_type == "refine":
+        elif self.chain_type == "refine":
             # First guess
             first_context = search_result[0].page_content
             inputs = ["context", "question"]
@@ -214,7 +225,7 @@ class CogninovaSearch:
         :param prompt: The user query
         :return: The answer to the query
         """
-        input_ids = self.tokenizer(prompt, return_tensors="pt", max_length=2000).input_ids
+        input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
         model_output = self.llm.generate(input_ids=input_ids, generation_config=self.gen_config)
         response = self.tokenizer.decode(model_output[0], skip_special_tokens=True)
         return response
