@@ -1,4 +1,4 @@
-# LLM with Retrieval Augmented Generation
+# Conversing with your private data (No API calls, it's all yours)
 
 The code for this repo was motivated by the fact that the [Langchain](https://python.langchain.com/docs/get_started/introduction.html) 🦜️ have many working example
 of how to augment a language model with various source of data using the OpenAI API.  
