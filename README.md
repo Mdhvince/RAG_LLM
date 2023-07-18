@@ -44,3 +44,9 @@ Here is an example from my app:
 We can see that the 3rd question **How does it work?** do not contain any information about **saliency map**. But using the history, the LLM is able 
 to generate a standalone question that is relevant: **How does the saliency map work?**.
 
+## The chain types implemented
+
+## Work in progress
+- [ ] Parameter Efficient Fine-Tuning on the QA task - Dataset [Dolly](https://huggingface.co/datasets/databricks/databricks-dolly-15k)
+- [ ] Parameter Efficient Fine-Tuning on standalone question generation - Dataset (Not found yet)
+- [ ] Enhance the retrieval method as it is a very important part of the workflow
